@@ -6,39 +6,48 @@
 import gymnasium as gym
 import gym_carla
 import carla
+from gym_carla.envs.carla_env import CarlaEnv
 from stable_baselines3 import SAC
+from stable_baselines3.common.env_checker import check_env
 
+# This file is modified from <https://github.com/cjy1992/gym-carla.git>:
+# Copyright (c) 2019: Jianyu Chen (jianyuchen@berkeley.edu)
+# This work is licensed under the terms of the MIT license.
+# For a copy, see <https://opensource.org/licenses/MIT>.
 def main():
   # parameters for the gym_carla environment
   params = {
     'number_of_vehicles': 1,
     'number_of_walkers': 0,
-    'display_size': 256,  # screen size of bird-eye render
-    'max_past_step': 1,  # the number of past steps to draw
-    'dt': 0.1,  # time interval between two frames
-    'discrete': False,  # whether to use discrete control space
-    'discrete_acc': [-3.0, 0.0, 3.0],  # discrete value of accelerations
-    'discrete_steer': [-0.2, 0.0, 0.2],  # discrete value of steering angles
-    'continuous_accel_range': [-3.0, 3.0],  # continuous acceleration range
-    'continuous_steer_range': [-0.3, 0.3],  # continuous steering angle range
-    'ego_vehicle_filter': 'vehicle.lincoln*',  # filter for defining ego vehicle
-    'port': 2000,  # connection port
-    'town': 'Town03',  # which town to simulate
-    'max_time_episode': 1000,  # maximum timesteps per episode
-    'max_waypt': 12,  # maximum number of waypoints
-    'obs_range': 32,  # observation range (meter)
-    'lidar_bin': 0.125,  # bin size of lidar sensor (meter)
-    'd_behind': 12,  # distance behind the ego vehicle (meter)
-    'out_lane_thres': 2.0,  # threshold for out of lane
-    'desired_speed': 8,  # desired speed (m/s)
-    'max_ego_spawn_times': 200,  # maximum times to spawn ego vehicle
-    'display_route': False,  # whether to render the desired route
+    'display_size': 128,
+    'max_past_step': 1,
+    'dt': 0.1,
+    'discrete': False,
+    'discrete_acc': [-3.0, 0.0, 3.0],
+    'discrete_steer': [-0.2, 0.0, 0.2],
+    'continuous_accel_range': [-3.0, 3.0],
+    'continuous_steer_range': [-0.3, 0.3],
+    'ego_vehicle_filter': 'vehicle.lincoln*',
+    'port': 4000,
+    'town': 'Town01',
+    'max_time_episode': 1000,
+    'max_waypt': 12,
+    'obs_range': 16,
+    'lidar_bin': 0.25,
+    'd_behind': 12,
+    'out_lane_thres': 2.0,
+    'desired_speed': 8,
+    'max_ego_spawn_times': 200,
+    'display_route': False,
   }
 
-  # Set gym-carla environment
-  env = gym.make('carla-v0', params=params)
+  # Instantiate env directly, bypassing gym.make params issue
+  env = CarlaEnv(params)
 
-  model = SAC("MlpPolicy", env, device="cuda", buffer_size=20000, verbose=1, tensorboard_log="./tensorboard_DQN/")  
+  model = SAC("MlpPolicy", env, device="cuda", buffer_size=1_000, batch_size=32, learning_starts=500, verbose=1, tensorboard_log="./tensorboard_DQN/")  
+  model.learn(total_timesteps=10_000, tb_log_name="SAC_CARLA")
+  model.save("SAC_dist")
+  del model
   model = SAC.load("SAC_dist")
 
   obs, info = env.reset()
